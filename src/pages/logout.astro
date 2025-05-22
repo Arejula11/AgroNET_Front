@@ -1,21 +1,34 @@
 ---
 
 //Para usar astro.cookies.delete no pude usarse en una funcion, por lo tanto se puede solucionar con el siguiente codigo
-// Astro.cookies.delete("token");
-// Astro.cookies.delete("TS01da3df4");
-// Astro.cookies.delete('user');
-// Astro.cookies.delete('authjs.csrf-token');
-// Astro.cookies.delete('authjs.callback-url');
-// Astro.cookies.delete('authjs.session-token');
-// Astro.cookies.delete('__Secure-authjs.session-token')
-// Astro.cookies.delete('__Secure-authjs.csrf-token')
-// Astro.cookies.delete('__Secure-authjs.callback-url')
-// Astro.cookies.delete('__Secure-TS01da3df4')
+Astro.cookies.delete("token");
+Astro.cookies.delete("TS01da3df4");
+Astro.cookies.delete('user');
+Astro.cookies.delete('authjs.csrf-token');
+Astro.cookies.delete('authjs.callback-url');
+Astro.cookies.delete('authjs.session-token');
+Astro.cookies.delete('__Secure-TS01da3df4')
 
-import { signOut } from "auth-astro/client";
+Astro.cookies.delete('__Host-authjs.csrf-token', {
+  path: '/',
+  secure: true,
+  httpOnly: true,
+  sameSite: 'lax'
+});
 
+Astro.cookies.delete('__Secure-authjs.session-token', {
+  path: '/',
+  secure: true,
+  httpOnly: true,
+  sameSite: 'lax'
+});
 
-await signOut({ callbackUrl: "/" });
+Astro.cookies.delete('__Secure-authjs.callback-url', {
+  path: '/',
+  secure: true,
+  httpOnly: true,
+  sameSite: 'lax'
+});
 
 return Astro.redirect('/');
 ---
