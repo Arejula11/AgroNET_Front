@@ -32,6 +32,7 @@ interface LoginResponse {
  */
 async function loginUser(data: LoginData): Promise<LoginResponse> {
     try {
+        console.log(Url+"auth/login");
         const response = await axios.post<LoginResponse>(`${Url}auth/login`, data);
         return response.data;
     } catch (error: any) {
