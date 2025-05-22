@@ -1,19 +1,21 @@
 ---
 
 //Para usar astro.cookies.delete no pude usarse en una funcion, por lo tanto se puede solucionar con el siguiente codigo
-Astro.cookies.delete("token");
-Astro.cookies.delete("TS01da3df4");
-Astro.cookies.delete('user');
-Astro.cookies.delete('authjs.csrf-token');
-Astro.cookies.delete('authjs.callback-url');
-Astro.cookies.delete('authjs.session-token');
-Astro.cookies.delete('__Secure-authjs.session-token')
-Astro.cookies.delete('__Secure-authjs.csrf-token')
-Astro.cookies.delete('__Secure-authjs.callback-url')
-Astro.cookies.delete('__Secure-TS01da3df4')
-Astro.cookies.delete('__Host-authjs.csrf-token')
-Astro.cookies.delete('__Secure-authjs.session-token')
-Astro.cookies.delete('__Secure-authjs.callback-url')
+// Astro.cookies.delete("token");
+// Astro.cookies.delete("TS01da3df4");
+// Astro.cookies.delete('user');
+// Astro.cookies.delete('authjs.csrf-token');
+// Astro.cookies.delete('authjs.callback-url');
+// Astro.cookies.delete('authjs.session-token');
+// Astro.cookies.delete('__Secure-authjs.session-token')
+// Astro.cookies.delete('__Secure-authjs.csrf-token')
+// Astro.cookies.delete('__Secure-authjs.callback-url')
+// Astro.cookies.delete('__Secure-TS01da3df4')
+
+import { signOut } from "auth-astro/client";
+
+
+await signOut();
 
 return Astro.redirect('/');
 ---
