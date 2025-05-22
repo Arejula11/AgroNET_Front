@@ -1,0 +1,40 @@
+---
+
+import Layout from "@layouts/Layout.astro";
+import LeafletMapa from "@components/LeafletMapa.astro";
+import { getAlerts } from "@utils/getAlerts.js";
+import {type ResponseAlerts} from "@utils/getAlerts.js";
+
+const latitude = 40.063667
+const longitude = -5.74922
+const zoom = 7
+
+const alertasData: ResponseAlerts[] = [];
+
+
+const token = Astro.cookies.get("token")?.value || "";
+try {
+  const response = await getAlerts(token);
+  if (response.status === 200) {
+    const data = await response.data;
+    alertasData.push(data);
+  } else {
+    console.error("Error al obtener las alertas:", response.statusText);
+  }
+} catch (error) {
+  console.error("Error al obtener las alertas:", error);
+}
+---
+
+<Layout>
+  <div class="flex justify-center items-center h-screen px-4 -mt-10">
+    <div class="h-10/12 w-full max-w-8xl border-2 border-primary-green">
+      <LeafletMapa
+      latitude={latitude}  
+      longitude={longitude}
+      zoom={zoom}
+      alertasData={[{ data: alertasData, color: "green" }]}
+      />
+    </div>
+  </div>
+</Layout>

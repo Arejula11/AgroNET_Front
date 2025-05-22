@@ -1,0 +1,24 @@
+---
+import Layout from "@layouts/Layout.astro";
+import Product from "@components/Product.astro";
+import PriceChart from "@components/PriceChart";
+import {getInfoProduct} from "@utils/getInfoProduct";
+import type {Request} from "@utils/getInfoProduct";
+import ProductPrices from "@components/ProductPrices";
+
+const id = Astro.params.id ?? '';
+const token = Astro.cookies.get("token");
+const req: Request = {id: id, token: token?.value};
+let response = {};
+try {
+    response = await getInfoProduct(req);
+} catch (error) {
+    console.error(error);
+}
+---
+
+<Layout>
+    <Product response={response} />
+    <PriceChart  response={response} client:only="react" />
+    <ProductPrices response={response} client:only="react"/>
+</Layout>

@@ -1,0 +1,45 @@
+---
+const response = Astro.props.response;
+---
+
+<div class="bg-white">
+  <div class="pt-6">
+    <!-- Image gallery -->
+    <div class="mx-auto mt-6 max-w-2xl sm:px-6 lg:max-w-md lg:hidden lg:px-8">
+      <div
+        class="aspect-4/5 size-full object-cover sm:rounded-lg lg:aspect-auto lg:h-96 text-center"
+      >
+      <img class="rounded-lg" src={response.data?.image} alt={response.data?.name + " image"} />
+    </div>
+    </div>
+
+    <!-- Product info -->
+    <div
+      class="mx-auto max-w-2xl px-4 pt-10 pb-16 sm:px-6 lg:grid lg:max-w-7xl lg:grid-cols-3 lg:grid-rows-[auto_auto_1fr] lg:gap-x-8 lg:px-8 lg:pt-16 lg:pb-24"
+    >
+      <div
+        class="bg-black aspect-4/5 size-full object-cover sm:rounded-lg hidden lg:block lg:aspect-auto lg:h-96 text-center"
+      >
+      { response && 
+      <img class="rounded-lg" src={response.data?.image} alt={response.data?.name + " image"} />
+
+      }
+      </div>
+      <div
+        class="lg:col-span-2 lg:pr-8 flex flex-col ml-4 gap-2"
+      >
+        <h1 class="text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">
+          {response.data?.name}
+        </h1>
+        <h2>
+          <span class="text-xl font-semibold text-gray-500 ">
+            {response.data?.sector}
+          </span>
+        </h2>
+        <p class="text-3xl tracking-tight text-gray-900">
+          {response.data?.prices ? response.data.prices[response.data.prices.length -1].price.toFixed(3) : 0}€/Kg
+        </p>
+      </div>
+    </div>
+  </div>
+</div>

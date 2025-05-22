@@ -1,0 +1,17 @@
+---
+import AdminMessages from "@components/AdminMessages";
+import AdminLayout from "@layouts/AdminLayout.astro";
+import { getAdminMessages } from "@utils/getAdmin";
+import {type Message} from "@utils/getAdmin";
+
+const token = Astro.cookies.get("token");
+
+
+
+---
+<AdminLayout>
+    <h2 class="text-5xl text-primary-green font-display text-center">
+        MENSAJES
+    </h2>
+    <AdminMessages token={token?.value} client:only="react"/>
+</AdminLayout>

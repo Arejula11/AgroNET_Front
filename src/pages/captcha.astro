@@ -1,0 +1,29 @@
+<html>
+  <head>
+    <script is:inline src="https://www.google.com/recaptcha/api.js"></script>
+  </head>
+
+  <body>
+    <button class="g-recaptcha"
+      data-sitekey="6LecCRwrAAAAALFVCh9DMGWKMBQVAtuaInIm1yJj"
+      data-callback="onSubmit"
+      data-action="submit"> Click me to verify the captcha challenge! </button>
+
+    <script is:inline>
+      function onSubmit(token) {
+        fetch("/recaptcha", {
+          method: "POST",
+          body: JSON.stringify({ recaptcha: token })
+        })
+        .then((response) => response.json())
+        .then((gResponse) => {
+          if (gResponse.success) {
+            window.location.href = "/mapa";
+          } else {
+            // Captcha verification failed
+          }
+        })
+      }
+    </script>
+  </body>
+</html>

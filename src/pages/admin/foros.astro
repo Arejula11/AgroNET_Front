@@ -1,0 +1,11 @@
+---
+
+import AdminLayout from "@layouts/AdminLayout.astro";
+import SearchForum from "@components/SearchForum";
+const token = Astro.cookies.get("token");
+
+---
+
+<AdminLayout>
+    <SearchForum client:only="react" token={token?.value} admin={true} />
+</AdminLayout>

@@ -1,0 +1,211 @@
+---
+import Layout from "@layouts/Layout.astro";
+import LeafletParcela from "@components/LeafletParcela.astro";
+import type { FeatureCollection, Geometry, GeoJsonProperties } from "geojson"
+import { getInfoPlot } from "@utils/getInfoPlot";
+import { type Response, type Parcel, type Owner} from "@utils/getInfoPlot";
+import {getInfoProduct, type Response as ResponseProducts} from "@utils/getInfoProduct";
+
+//Obtenemos la latitud y longitud de la URL
+const { id } = Astro.params;
+// id es del formato lat-lng
+if (id === undefined) {
+  console.error("No se ha proporcionado un ID de parcela.");
+  return;
+}
+const lat = id.split("-")[0] ;
+const lng = "-"+ id.split("-")[1];
+
+const requestData = {
+  lat,
+  lng
+}
+
+//Obtenemos la información de la parcela y el clima
+let response: Response | null | any = null;
+const token = Astro.cookies.get("token")?.value || "";
+let parcelFound = false;
+let parcela: Parcel | null = null;
+let weatherData: any;
+let weatherDataFound = false;
+let geoJsonData: FeatureCollection<Geometry, GeoJsonProperties> | null = null;
+const coordenadasIniciales: { latitude: number; longitude: number; zoom: number } = {
+  latitude: Number(lat),
+  longitude: Number(lng),
+  zoom: 18,
+};
+let lngCentroide = Number(lng);
+let latCentroide = Number(lat);
+let hasOwner = false;
+let owner: Owner | null = null;
+let productsId: string[] = [];
+let Products: ResponseProducts[] = [];
+
+try {
+  if (lat && lng) {
+    response = await getInfoPlot(requestData, token);
+    if (response && response.parcel) {
+      parcelFound = true;
+      lngCentroide = response.parcel.geometry.features[1].geometry.coordinates[0];
+      latCentroide = response.parcel.geometry.features[1].geometry.coordinates[1];
+      // Extraemos la información de la parcela
+      parcela = response.parcel;
+
+      //Guardamos la información del tiempo
+      weatherDataFound = response.weather ===  'Could not retrieve weather data from AEMET'  ? false : true;
+      weatherData = weatherDataFound && typeof response.weather !== "string" ? {
+        temperature: response.weather?.main.temperature,
+        precipitationProbability: response.weather?.precipitation.rainChance,
+        snowProbability: response.weather?.precipitation.snowChance,
+        windSpeed: response.weather?.wind.speed,
+        description: response.weather?.main.skyState,
+        humidity: response.weather?.main.relativeHumidity,
+        stormProbability: response.weather?.precipitation.stormChance,
+      } : null;
+      //Guardamos la información de los productos
+      if (parcela?.products) {
+        productsId = parcela.products;
+        for (const id of productsId) {
+          const productResponse : ResponseProducts = await getInfoProduct({id, token});
+          if (productResponse) {
+              Products.push(productResponse);
+          } else {
+            console.error("No se ha podido obtener la información del producto.");
+          }
+        }
+      } 
+      //Limitamos el número de productos a 3
+      Products = Products.slice(0, 3);
+      //Guardamos el geojson de la parcela
+      geoJsonData = response.parcel.geometry.features[0] as FeatureCollection<Geometry, GeoJsonProperties>;
+    
+      //Guardamos las coordenadas de la parcela de la parcela en localstorage
+      Astro.cookies.set("coordenadas", JSON.stringify({ lat: latCentroide, lng: lngCentroide }), { httpOnly: true, secure: true, domain: "localhost", path: "/" });
+      coordenadasIniciales.latitude = latCentroide;
+      coordenadasIniciales.longitude = lngCentroide;
+      //Obtenemos al propietario de la parcela
+      if (response.owner) {
+        hasOwner = true;
+        owner = response.owner;
+      } else {
+        hasOwner = false;
+      }
+    } else {
+      console.error("No se ha encontrado la parcela.");
+    }
+  }
+} catch (error) {
+  console.error(error);
+}
+if (!response) {
+  console.error("No se ha podido obtener la información de la parcela.");
+  // return;
+}
+
+
+
+---
+
+<Layout>
+  {parcelFound ?<div class="flex flex-col sm:relative w-full md:h-[94%] sm:min-h-0 sm:h-[200%]">
+
+    
+    <div class="z-10 order-1 sm:absolute sm:top-4 sm:right-4 bg-white p-6 rounded-2xl shadow-2xl w-full max-w-md sm:max-w-sm md:max-w-md lg:max-w-lg sm:w-auto sm:z-30 space-y-8">
+
+      {/* Información de la Parcela */}
+      <section>
+        <h1 class="text-2xl sm:text-3xl font-extrabold text-primary-green mb-4">Parcela</h1>
+        <div class="space-y-1 text-sm sm:text-base text-gray-800">
+          <p><strong>Tamaño:</strong> {parcela?.surface}</p>
+          {parcela?.crop && <p><strong>Cultivo:</strong> {parcela?.crop}</p>}
+          <p><strong>Uso:</strong> {parcela?.parcelUse}</p>
+          <p><strong>Ubicación:</strong> {latCentroide}, {lngCentroide}</p>
+          <p><strong>Municipio:</strong> {parcela?.municipalityName}</p>
+          <p><strong>Provincia:</strong> {parcela?.provinceName}</p>
+        </div>
+
+        {(parcela?.products?.length ?? 0) > 0 ? (
+          <div class="mt-4">
+            <strong class="block mb-2 text-sm sm:text-base text-primary-green">Productos:</strong>
+            <ul class="space-y-2">
+              {Products.map((product) => (
+                <li>
+                  <a 
+                    href={`/mercado/${product.data.id}`} 
+                    class="block w-full bg-primary-green text-white rounded-lg px-4 py-2 text-sm sm:text-base hover:bg-primary-green/90 transition"
+                  >
+                    {product.data.name}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : (
+          <div class="mt-4 p-4 bg-[#fffcdfcb] border border-[#fff9c1] text-black rounded-md text-sm sm:text-base shadow-sm">
+            No hay productos registrados actualmente para esta parcela.
+            <br />
+            <span class="block mt-2">
+              Si eres el propietario de esta parcela, puedes registrar esta parcela y añadir productos del mercado.
+            </span>
+          </div>
+        )}
+      </section>
+
+      {/* Información del Clima */}
+      <section class="bg-gradient-to-r from-primary-green to-secondary-green p-5 sm:p-6 rounded-2xl shadow-md text-white">
+        <h2 class="text-lg sm:text-xl font-bold mb-4">🌤️ Clima Actual</h2>
+        {weatherDataFound ? (
+          <div class="grid grid-cols-2 sm:grid-cols-3 gap-4 text-center">
+            {[
+              { icon: "🌡️", label: "Temperatura", value: `${weatherData?.temperature}°C` },
+              { icon: "💧", label: "Humedad", value: `${weatherData?.humidity}%` },
+              { icon: "💨", label: "Viento", value: `${weatherData?.windSpeed} km/h` },
+              { icon: "🌧️", label: "Lluvia", value: `${weatherData?.precipitationProbability}%` },
+              { icon: "❄️", label: "Nieve", value: `${weatherData?.snowProbability}%` },
+              { icon: "⚡️", label: "Tormenta", value: `${weatherData?.stormProbability}%` },
+            ].map(({ icon, label, value }) => (
+              <div class="flex flex-col items-center bg-white/80 p-3 sm:p-4 rounded-xl shadow text-gray-800">
+                <span class="text-2xl sm:text-3xl">{icon}</span>
+                <p class="mt-2 text-sm sm:text-lg font-semibold">{value}</p>
+                <p class="text-xs sm:text-sm text-gray-600">{label}</p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p class="text-sm sm:text-base">No se pudo obtener la información del tiempo.</p>
+        )}
+      </section>
+
+      {/* Propietario o Registro */}
+      <div class="mt-6">
+        {hasOwner ? (
+          <div class="p-4 bg-green-50 text-green-800 rounded-md text-sm sm:text-base">
+            <strong>Propietario:</strong> {owner?.username}
+          </div>
+        ) : (
+          <div class="p-4 bg-blue-50 text-blue-800 rounded-md text-sm sm:text-base flex items-center justify-between">
+            <span>Esta parcela no ha sido registrada.</span>
+            <a 
+              href="/registerParcel" 
+              class="ml-4 bg-primary-green text-white px-4 py-2 rounded-md hover:bg-primary-green/90 transition text-sm sm:text-base"
+            >
+              Registrar Parcela
+            </a>
+          </div>
+        )}
+      </div>
+    </div>
+
+
+    {/* <!-- Mapa (Second on Mobile, Full Height on Desktop) --> */}
+    <div class="order-2 w-full min-h-[300px] h-[60vh] sm:h-full">
+
+      <LeafletParcela {...coordenadasIniciales} uso={parcela?.parcelUse} geoJSON={[{ data: geoJsonData, color: "var(--color-primary-green)" }]}/>
+    </div>
+  </div>
+  : (
+    <div class="flex items-center justify-center h-screen">
+      <h1 class="text-2xl font-bold text-primary-green">Las coordenadas seleccionadas no corresponden a una parcela registrada.</h1>
+    </div>
+  )}
+</Layout>

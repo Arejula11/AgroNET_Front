@@ -1,0 +1,163 @@
+---
+import "leaflet/dist/leaflet.css"
+import type { FeatureCollection, Geometry, GeoJsonProperties } from "geojson"
+
+export interface Props {
+  latitude: string;
+  longitude: string;
+  zoom: number;
+  uso: string;
+  geoJSON: {
+    data: FeatureCollection<Geometry, GeoJsonProperties>;
+    color: string;
+  }[];
+}
+
+const { latitude, longitude, zoom, geoJSON, uso } = Astro.props
+
+---
+
+<leaflet-map
+  class="block h-full"
+  data-latitude={latitude}  
+  data-longitude={longitude}
+  data-zoom={zoom}
+  data-geojson={JSON.stringify(geoJSON)}
+  data-uso={uso}
+>
+</leaflet-map>
+
+<script>
+  import L, { type LatLngTuple } from "leaflet"
+  import type { FeatureCollection, Geometry, GeoJsonProperties } from "geojson"
+
+  class LeafletMap extends HTMLElement {
+    connectedCallback() {
+      const { latitude, longitude, zoom, geojson, uso } = this.dataset
+      const latlng: LatLngTuple = [Number(latitude), Number(longitude)]
+
+      
+      //Definimos los límites del mapa
+      let p1 = L.latLng (28.21, -18.26) // Suroeste (Andalucía)
+      let p2 = L.latLng (44.5, 4.5) // Noreste (Cataluña)
+
+     // Creamos el mapa
+      const map = L.map(this, {
+        scrollWheelZoom: false,
+        dragging: false,
+        attributionControl: false,
+        maxBounds: L.latLngBounds(p1, p2),
+      }).setView(latlng, Number(zoom))
+
+
+      //Capa de carto
+      let basic = L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
+        attribution: "<a href='https://carto.com/' target='_blank'>CARTO</a>"
+      })
+
+      // Capa de Parcelas Catastrales de España (WMS)
+      let catastro = L.tileLayer.wms("http://ovc.catastro.meh.es/Cartografia/WMS/ServidorWMS.aspx", {
+        layers: "Catastro",
+        format: "image/png",
+        transparent: true,
+        attribution: "<a href='http://www.sedecatastro.gob.es/' target='_blank'>Spanish General Directorate for Cadastre</a>"
+      })
+
+      //Agrupamos abmas capas y las añadimos al mapa
+      L.layerGroup([basic, catastro]).addTo(map)
+      
+      //Añadimos el control de zoom
+      map.on("click", (event) => {
+          map.scrollWheelZoom.enable()
+          map.dragging.enable()
+      });    
+
+      // Añadimos el geoJSON al mapa
+
+      if (!geojson) return
+
+      const geoJSONData = JSON.parse(geojson as string)
+      const bounds = L.latLngBounds([]) // Initialize an empty bounds object
+
+      geoJSONData.forEach(
+        ({
+          data,
+          color,
+        }: {
+          data: FeatureCollection<Geometry, GeoJsonProperties>
+          color: string
+        }) => {
+          const layer = L.geoJSON(data, {
+            style: { color, weight: 5, opacity: 0.65 },
+          }).addTo(map)
+
+          // Extend the bounds to include the current layer's bounds
+          bounds.extend(layer.getBounds())
+        }
+      )
+      const paddedBounds = bounds.pad(1.5)
+
+      // Set the map's bounds without adjusting the zoom
+      map.setMaxBounds(paddedBounds)
+
+        //Añadimos un marker al mapa
+        // Definir icono personalizado
+      const myIcon = L.icon({
+        iconUrl: "/icons/map-pin.svg",
+        iconSize: [25, 36],
+        iconAnchor: [12, 41],
+        popupAnchor: [1, -34],
+        shadowSize: [41, 41],
+      })
+
+      L.marker(latlng, { icon: myIcon }).addTo(map).bindPopup(
+        `<div class="text-center">
+          <h2 class="text-lg font-bold">Parcela</h2>
+          <p class="text-sm">Latitud: ${latitude}</p>
+          <p class="text-sm">Longitud: ${longitude}</p>
+          <p class="text-sm">Uso: ${uso}</p>
+        </div>`
+      )
+    
+      
+
+    }
+  }
+
+  window.customElements.define("leaflet-map", LeafletMap)
+</script>
+
+
+<style is:global>
+  .leaflet-tile {
+  }
+
+  .leaflet-pane {
+    z-index: 10;
+  }
+
+  .leaflet-top {
+    z-index: 11;
+  }
+
+  .leaflet-control-zoom.leaflet-bar.leaflet-control {
+    border-radius: 24px;
+    overflow: hidden;
+    margin: 14px;
+    border-color: var(--color-primary);
+  }
+
+  a.leaflet-control-zoom-in,
+  a.leaflet-control-zoom-out {
+    background-color: var(--color-primary-green);
+    color: black;
+    border-color: black;
+  }
+
+  a.leaflet-control-zoom-in:hover,
+  a.leaflet-control-zoom-out:hover {
+    background-color: var(--color-secondary-green);
+    color:black;
+    border-color: black;
+  }
+</style>

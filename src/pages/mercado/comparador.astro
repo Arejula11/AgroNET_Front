@@ -1,0 +1,17 @@
+---
+
+import Layout from "@layouts/Layout.astro";
+import ProductComparator from "../../components/ProductComparator";
+
+
+const token = Astro.cookies.get("token");
+
+---
+
+<Layout>
+    <div class="flex mx-auto w-full justify-around my-16 flex-col gap-4 lg:flex-row">
+        <ProductComparator client:only="react" number={1} token={token?.value}/>
+        <div class="w-[1px] h-auto  bg-gray-200"></div>
+        <ProductComparator client:only="react" number={2} token={token?.value}/>
+    </div>
+</Layout>

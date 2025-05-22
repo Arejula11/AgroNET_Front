@@ -1,0 +1,220 @@
+---
+import "leaflet/dist/leaflet.css"
+import type { FeatureCollection, Geometry, GeoJsonProperties } from "geojson"
+
+
+export interface Props {
+  latitude: number
+  longitude: number
+  zoom: number
+  alertasData: {
+    data: FeatureCollection<Geometry, GeoJsonProperties>;
+    color: string;
+  }[];
+}
+
+const { latitude, longitude, zoom, alertasData } = Astro.props
+---
+
+<leaflet-map
+  class="block h-full"
+  data-latitude={latitude}  
+  data-longitude={longitude}
+  data-zoom={zoom}
+  data-alertas-data={JSON.stringify(alertasData)}
+>
+</leaflet-map>
+
+<script>
+  import L, { type LatLngTuple } from "leaflet"
+  import type { FeatureCollection, Geometry, GeoJsonProperties } from "geojson"
+
+  class LeafletMap extends HTMLElement {
+    connectedCallback() {
+      const { latitude, longitude, zoom, alertasData } = this.dataset
+      const latlng: LatLngTuple = [Number(latitude), Number(longitude)]
+      
+      //Definimos los límites del mapa
+      
+      let p1 = L.latLng (26.22, -23.06) // Suroeste (canarias)
+      let p2 = L.latLng (47.5, 7.5) // Noreste (Cataluña)
+
+     // Creamos el mapa
+      const map = L.map(this, {
+        doubleClickZoom: false,
+        attributionControl: false,
+        maxBounds: L.latLngBounds(p1, p2),
+        // zoomDelta: 0.2,
+        zoomSnap: 0.2,
+        
+      }).setView(latlng, Number(zoom))
+
+      
+      //Capa de carto
+      let basic = L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
+        attribution: "<a href='https://carto.com/' target='_blank'>CARTO</a>"
+      })
+
+      // Capa de Parcelas Catastrales de España (WMS)
+      let catastro = L.tileLayer.wms("http://ovc.catastro.meh.es/Cartografia/WMS/ServidorWMS.aspx", {
+        layers: "Catastro",
+        format: "image/png",
+        transparent: true,
+        attribution: "<a href='http://www.sedecatastro.gob.es/' target='_blank'>Spanish General Directorate for Cadastre</a>"
+      })
+
+      //Agrupamos abmas capas 
+      var catastroGroup = L.layerGroup([basic, catastro])
+
+      //Capa de carto inicial
+      let inicial = L.tileLayer("https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png", {
+        attribution: "<a href='https://carto.com/' target='_blank'>CARTO</a>"
+      })
+      
+      var alertasGroup = L.layerGroup([basic, catastro])
+
+      const geojsonData = JSON.parse(alertasData as string)
+      geojsonData.forEach(
+        ({
+          data,
+          color,
+        }: {
+          data: FeatureCollection<Geometry, GeoJsonProperties>
+          color: string
+        }) => {
+          const getGeoJsonStyle = (feature?: any) => ({
+            color: color,
+            weight: 5,
+            opacity: 0.65,
+            fillColor: color,
+            fillOpacity: 0.3,
+              });
+
+          const layer = L.geoJSON(data, {
+            style: getGeoJsonStyle,
+            onEachFeature: (feature, layer) => {
+              const info = {
+                areaDesc: feature.properties?.areaDesc,
+                certainty: feature.properties?.certainty,
+                descripcion: feature.properties?.descripcion,
+                effective: feature.properties?.effective,
+                expires: feature.properties?.expires,
+                fenomeno: feature.properties?.fenomeno,
+                nivel: feature.properties?.nivel,
+                onset: feature.properties?.onset,
+                probabilidad: feature.properties?.probabilidad,
+                severity: feature.properties?.severity,
+                urgency: feature.properties?.urgency,
+              }
+
+                info.nivel = info.nivel ? String(info.nivel).toUpperCase() : info.nivel;
+                let colorNivel = "";
+                if (info.nivel === "VERDE") {
+                  colorNivel = "#4CAF50";
+                } else if (info.nivel === "AMARILLO") {
+                  colorNivel = "#FFEB3B";
+                } else if (info.nivel === "NARANJA") {
+                  colorNivel = "#FF9800";
+                } else if (info.nivel === "ROJO") {
+                  colorNivel = "#F44336";
+                } else {
+                  colorNivel = "#000000"; // Default color
+                }
+
+              layer.on('mouseover', () => {
+                const popupContent = `
+                    <div>
+                    <h3>${info.fenomeno}</h3>
+                    <p><strong style="color: #4CAF50;">Descripción:</strong> ${info.descripcion}</p>
+                    <p><strong style="color: #4CAF50;">Área:</strong> ${info.areaDesc}</p>
+                    <p><strong style="color: #4CAF50;">Probabilidad:</strong> ${info.probabilidad}</p>
+                    <p><strong style="color: #4CAF50;">Severidad:</strong> ${info.severity}</p>
+                    <p><strong style="color: #4CAF50;">Urgencia:</strong> ${info.urgency}</p>
+                    <p><strong style="color: #4CAF50;">Certidumbre:</strong> ${info.certainty}</p>
+                    <p><strong style="color: #4CAF50;">Nivel:</strong> <span style="color: ${colorNivel};">${info.nivel}</span></p>
+                    </div>  
+                    `;
+                layer.bindPopup(popupContent).openPopup();
+                layer.setStyle({
+                  color: "#FF0000",
+                  weight: 4,
+                  fillColor: "#FF0000",
+                  fillOpacity: 0.5,
+                });
+              });
+
+              layer.on('mouseout', () => {
+                layer.setStyle(getGeoJsonStyle(feature));
+                layer.closePopup();
+              });
+            },
+          }).addTo(alertasGroup);
+        }
+      )
+      
+      //Definimos los distintos mapas 
+      var Maps = {
+          "Inical": inicial,
+          "Catastro": catastroGroup,
+          "Alertas": alertasGroup
+      };
+
+      //Añadimos el control de capas al mapa
+      L.control.layers(Maps).addTo(map);
+
+      //Añadimos el control de zoom
+      map.on("click", (event) => {
+          map.scrollWheelZoom.enable()
+          map.dragging.enable()
+      });    
+
+      //Añadimos el control de pulsar en parcela sobre el mapa
+      map.on("dblclick", (event) => {
+        //navegamos a otra página con id de la parcela obtenido de la latitud y longitud
+        window.location.href = `/parcela/${event.latlng.lat}${event.latlng.lng}`
+
+      });
+
+      inicial.addTo(map)
+      
+
+    }
+  }
+
+  window.customElements.define("leaflet-map", LeafletMap)
+</script>
+
+
+<style is:global>
+  .leaflet-tile {
+  }
+
+  .leaflet-pane {
+    z-index: 10;
+  }
+
+  .leaflet-top {
+    z-index: 11;
+  }
+
+  .leaflet-control-zoom.leaflet-bar.leaflet-control {
+    border-radius: 24px;
+    overflow: hidden;
+    margin: 14px;
+    border-color: var(--color-primary);
+  }
+
+  a.leaflet-control-zoom-in,
+  a.leaflet-control-zoom-out {
+    background-color: var(--color-primary-green);
+    color: black;
+    border-color: black;
+  }
+
+  a.leaflet-control-zoom-in:hover,
+  a.leaflet-control-zoom-out:hover {
+    background-color: var(--color-secondary-green);
+    color:black;
+    border-color: black;
+  }
+</style>

@@ -1,0 +1,12 @@
+---
+
+import Layout from "@layouts/Layout.astro";
+import SearchForum from "@components/SearchForum";
+
+const token = Astro.cookies.get("token");
+
+---
+
+<Layout>
+    <SearchForum client:only="react" token={token?.value}/>
+</Layout>

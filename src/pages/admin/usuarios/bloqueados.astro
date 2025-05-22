@@ -1,0 +1,12 @@
+---
+
+import AdminLayout from "@layouts/AdminLayout.astro";
+import SearchBlockedUser from "@components/SearchBlockedUser";
+
+
+---
+
+<AdminLayout>
+    <SearchBlockedUser client:only="react" token={Astro.cookies.get("token")?.value}/>
+    
+</AdminLayout>

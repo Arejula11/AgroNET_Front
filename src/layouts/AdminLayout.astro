@@ -1,0 +1,28 @@
+---
+import Head from '@components/Head.astro';
+import { ClientRouter, fade, slide } from 'astro:transitions';
+---
+
+<!doctype html>
+<html lang="es">
+	<head>
+		<Head />
+		<ClientRouter/>
+	</head>
+	<body>
+		<a href="/admin" class="flex flex-col items-center justify-center space-y-6 mb-6 mt-4">
+			<h1 class="text-7xl text-primary-green font-bold">AgroNET</h1>
+			
+		</a>
+		<slot />
+	</body>
+</html>
+
+<style>
+	html,
+	body {
+		margin: 0;
+		width: 100%;
+		height: 99%;
+	}
+</style>

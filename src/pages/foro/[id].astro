@@ -1,0 +1,15 @@
+---
+
+import Layout from "@layouts/Layout.astro";
+import Forum from "@components/Forum";
+
+
+const id = Astro.params.id ?? '';
+const token = Astro.cookies.get("token")?.value
+const user = JSON.parse(Astro.cookies.get("user")?.value || "{}");
+
+---
+
+<Layout>
+        <Forum client:only="react" id={id} token={token} user={user}/>
+</Layout>

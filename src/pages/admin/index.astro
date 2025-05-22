@@ -1,0 +1,38 @@
+---
+
+import AdminLayout from "@layouts/AdminLayout.astro";
+
+---
+
+<AdminLayout>
+    
+    <h2 class="text-4xl text-primary-green font-display text-center">
+        Bienvenido al centro de administración
+    </h2>
+
+    <div class="grid grid-cols-2 gap-8 mt-6 p-8 max-w-5xl mx-auto">
+        <a href="/admin/usuarios" class="bg-primary-green shadow-lg rounded-2xl p-10 flex flex-col justify-center items-center cursor-pointer hover:bg-secondary-green w-full h-48">
+            <h3 class="text-2xl font-semibold text-white text-center">Usuarios</h3>
+        </a>
+        <a href="/admin/foros" class="bg-primary-green shadow-lg rounded-2xl p-10 flex flex-col justify-center items-center cursor-pointer hover:bg-secondary-green w-full h-48">
+            <h3 class="text-2xl font-semibold text-white text-center">Foros</h3>
+        </a>
+        <a href="/admin/mensajes" class="bg-primary-green shadow-lg rounded-2xl p-10 flex flex-col justify-center items-center cursor-pointer hover:bg-secondary-green w-full h-48">
+            <h3 class="text-2xl font-semibold text-white text-center">Mensajes</h3>
+        </a>
+        <a href="/admin/estadisticas" class="bg-primary-green shadow-lg rounded-2xl p-10 flex flex-col justify-center items-center cursor-pointer hover:bg-secondary-green w-full h-48">
+            <h3 class="text-2xl font-semibold text-white text-center">Estadísticas</h3>
+        </a>
+    </div>
+    <div class="flex flex-col items-center justify-center mt-8">
+        <button onclick="logout()" class="bg-primary-green text-white font-semibold py-2 px-4 rounded-lg shadow-lg hover:bg-secondary-green text-2xl">
+            Cerrar sesión
+        </button>
+    </div>
+    
+    <script is:inline>
+        function logout() {
+            window.location.href = "/logout";
+        }
+    </script>
+</AdminLayout>

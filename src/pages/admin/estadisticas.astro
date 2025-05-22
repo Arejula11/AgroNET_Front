@@ -1,0 +1,87 @@
+---
+import { Contador } from "@components/Contador";
+import AdminLayout from "@layouts/AdminLayout.astro";
+import LineChart from "@components/AdminCharts/LineChart";
+import PieChart from "@components/AdminCharts/PieChart";
+import BarChart from "@components/AdminCharts/BarChart";
+import { getAdminStats } from "@utils/getAdmin";
+import {type AdminStats} from "@utils/getAdmin";
+
+let data: AdminStats = {
+    totalUsers: 0,
+    totalPosts: 0,
+    totalBanned: 0,
+    totalForums: 0,
+    usersPerMonth: [],
+    postsPerMonth: [],
+    usersByAutCom: [],
+    usersByRole: [],
+    loginsPerHour: [],
+    loginsPerMonth: []
+};
+
+const token = Astro.cookies.get("token");
+
+try {
+    data = await getAdminStats({token: token?.value});
+} catch (error) {
+    console.error("Error fetching data:", error);
+    // Handle the error as needed
+    
+}
+
+
+
+---
+
+<AdminLayout>
+    <div class="m-6 p-6 rounded-lg bg-gray-100">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
+            <!-- Key Stats Cards -->
+            <div class="border-primary-green border bg-accent text-black shadow-lg p-6 rounded-lg text-center">
+                <h3 class="text-lg font-semibold text-center">Usuarios Totales</h3>
+                <Contador initial={0} final={data.totalUsers} client:load/>
+            </div>
+            <div class="border-primary-green border bg-accent text-black shadow-lg p-6 rounded-lg text-center">
+                <h3 class="text-lg font-semibold text-center">Usuarios Bloqueados</h3>
+                <Contador initial={0} final={data.totalBanned} client:load/>
+            </div>
+            <div class="border-primary-green border bg-accent text-black shadow-lg p-6 rounded-lg text-center">
+                <h3 class="text-lg font-semibold text-center">Total de Mensajes</h3>
+                <Contador initial={0} final={data.totalPosts} client:load/>
+            </div>
+            <div class="border-primary-green border bg-accent text-black shadow-lg p-6 rounded-lg text-center">
+                <h3 class="text-lg font-semibold text-center">Total de Foros</h3>
+                <Contador initial={0} final={data.totalForums} client:load/>
+            </div>
+        </div>
+        
+        <!-- Charts Section -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <div class="border-primary-green border bg-accent text-black shadow-lg p-6 rounded-lg text-center">
+                <h3 class="text-lg font-semibold mb-2 text-center">Usuarios Creados por Mes</h3>
+                <LineChart response={data.usersPerMonth} name="userCount" chartId="chart-users-per-month" client:only="react"/>
+            </div>
+            <div class="border-primary-green border bg-accent text-black shadow-lg p-6 rounded-lg text-center">
+                <h3 class="text-lg font-semibold mb-2 text-center">Publicaciones por Mes</h3>
+                <LineChart response={data.postsPerMonth} name="postCount" chartId="chart-posts-per-month" client:only="react"/>
+            </div>
+            <div class="border-primary-green border bg-accent text-black shadow-lg p-6 rounded-lg text-center">
+                <h3 class="text-lg font-semibold mb-2 text-center">Usuarios por Comunidad Autónoma</h3>
+                <BarChart response={data.usersByAutCom} factor="autonomousCommunity" name="userCount" chartId="chart-users-by-community" client:only="react"/>
+            </div>
+            <div class="border-primary-green border bg-accent text-black shadow-lg p-6 rounded-lg text-center">
+                <h3 class="text-lg font-semibold mb-2 text-center">Usuarios por Rol</h3>
+                <PieChart response={data.usersByRole} factor="role" name="userCount" chartId="chart-users-by-role" client:only="react"/>
+            </div>
+            <div class="border-primary-green border bg-accent text-black shadow-lg p-6 rounded-lg text-center">
+                <h3 class="text-lg font-semibold mb-2 text-center">Inicios de Sesión por Hora</h3>
+                <BarChart response={data.loginsPerHour} factor="hour" name="userCount" chartId="chart-logins-per-hour"  client:only="react"/>
+            </div>
+            <div class="border-primary-green border bg-accent text-black shadow-lg p-6 rounded-lg text-center">
+                <h3 class="text-lg font-semibold mb-2 text-center">Inicios de Sesión por Mes</h3>
+                <LineChart response={data.loginsPerMonth} name="userCount" chartId="chart-logins-per-month" client:only="react"/>
+            </div>
+        </div>
+    </div>
+</AdminLayout>

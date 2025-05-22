@@ -1,0 +1,238 @@
+---
+import Layout from "@layouts/Layout.astro";
+import {getAllProducts, type Response} from "@utils/getAllProducts";
+import {registerPlot} from "@utils/registerPlot";
+
+enum CropType {
+  CEREALS = 'Cereales',
+  VEGETABLES = 'Hortalizas',
+  FRUIT_TREES = 'Frutales',
+  VINEYARDS = 'Viñedos',
+  OLIVE_GROVES = 'Olivares',
+  LEGUMES = 'Legumbres',
+  TUBERS = 'Tubérculos',
+  FORAGES = 'Forrajes',
+  OTHERS = 'Otros',
+}
+
+const token = Astro.cookies.get("token")?.value || "";
+const productos: any = [];
+
+//obtenemos la lista de productos
+try {
+    const response = await getAllProducts(token);
+    if (response && response.data) {
+        response.data.products.forEach((producto: any) => {
+            productos.push({
+                id: producto.id,
+                name: producto.name
+            });
+        });
+    } else {
+        console.error("No se encontraron productos.");
+    }
+}
+catch (error) {
+    console.error("Error al obtener la lista de productos:", error);
+}
+//rescatamos las coordenadas  de la parcela
+const coordenadas = JSON.parse(Astro.cookies.get("coordenadas")?.value || "{}");
+if (Astro.request.method === "POST") {
+    try {
+        // Obtener los datos del formulario
+        const data = await Astro.request.formData();
+        const recaptchaToken = data.get("recaptcha");
+        // Verify the reCAPTCHA token
+         const recaptchaURL = "https://www.google.com/recaptcha/api/siteverify";
+        const requestHeaders = {
+            "Content-Type": "application/x-www-form-urlencoded",
+        };
+        const requestBody = new URLSearchParams({
+            secret: import.meta.env.RECAPTCHA_SECRET,
+            response: recaptchaToken,
+        });
+
+        const recaptchaResponse = await fetch(recaptchaURL, {
+            method: "POST",
+            headers: requestHeaders,
+            body: requestBody.toString(),
+        });
+
+        const recaptchaResult = await recaptchaResponse.json();
+
+        if (!recaptchaResult.success) {
+            throw new Error("Error al verificar el captcha. Inténtalo de nuevo.");
+        }
+        if (recaptchaResult.score < 0.5) {
+            throw new Error("Captcha no verificado. Inténtalo de nuevo.");
+        }
+
+        // Obtener los datos del formulario
+        const latitude = data.get("latitude");
+        const longitude = data.get("longitude");
+        const crop = data.get("crop");
+        const products = data.getAll("products");
+        const body = {
+            crop: crop as string,
+            location: {
+                lat: Number(latitude),
+                lng: Number(longitude)
+            },
+            products: products as string[],
+
+        }
+        // Enviar los datos al servidor
+        const response = await registerPlot(body, token);
+        if (response && response.status === 201) {
+            Astro.cookies.delete("coordenadas", { httpOnly: true, secure: true, domain: "localhost", path: "/" });
+            // Redirigir a la página de éxito o mostrar un mensaje
+            return Astro.redirect("/parcela/" + latitude + longitude);
+        } else {
+            console.error("Error al registrar la parcela:", response);
+        }
+    }
+    catch (error) {
+        console.error("Error al obtener los datos del formulario:", error);
+    }
+        
+}
+---
+<head>
+    <meta charset="UTF-8">
+    <script is:inline src="https://www.google.com/recaptcha/api.js?render=6LecCRwrAAAAALFVCh9DMGWKMBQVAtuaInIm1yJj"></script>
+    <script is:inline src="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/js/tom-select.complete.min.js"></script>
+</head>
+<Layout>
+    <div class="flex flex-col justify-center px-6 py-12 lg:px-8">
+        <div class="sm:mx-auto sm:w-full sm:max-w-sm text-center">
+            <img class="mx-auto h-12 w-auto" src="/favicon.svg" alt="AgroNet logo" />
+            <h2 class="mt-6 text-2xl font-bold tracking-tight text-gray-900">Registra la parcela</h2>
+            <p class="mt-1 text-sm text-gray-600">Completa la información básica para comenzar</p>
+        </div>
+
+        <div class="mt-10 sm:mx-auto sm:w-full sm:max-w-sm">
+            <form class="space-y-6" method="POST">
+      
+                {/* Coordenadas */}
+                <div>
+                    <label for="latitude" class="block text-sm font-medium text-gray-700">
+                        Coordenadas de la parcela
+                    </label>
+                    <div class="mt-2 grid grid-cols-1 gap-3">
+                        <input
+                        type="text"
+                        id="latitude"
+                        name="latitude"
+                        value={coordenadas.lat}
+                        readonly
+                        aria-readonly="true"
+                        style="cursor: pointer;"
+                        class="block w-full rounded-md border border-gray-300 bg-gray-100 px-3 py-2 text-gray-900 shadow-sm focus:border-secondary-green focus:ring-secondary-green sm:text-sm"
+                        />
+                        <input
+                        type="text"
+                        id="longitude"
+                        name="longitude"
+                        value={coordenadas.lng}
+                        readonly
+                        aria-readonly="true"
+                        style="cursor: pointer;"
+                        class="block w-full rounded-md border border-gray-300 bg-gray-100 px-3 py-2 text-gray-900 shadow-sm focus:border-secondary-green focus:ring-secondary-green sm:text-sm"
+                        />
+                    </div>
+                </div>
+
+                {/* Cultivo */}
+                <div>
+                    <label for="crop" class="block text-sm font-medium text-gray-700">
+                    Selecciona el cultivo
+                    </label>
+                    <div class="mt-2">
+                        <select
+                            id="crop"
+                            name="crop"
+                            required
+                            class="block w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-gray-900 shadow-sm focus:border-secondary-green focus:ring-secondary-green sm:text-sm"
+                        >
+                            <option disabled selected>Selecciona una opción</option>
+                            {Object.values(CropType).map((crop) => (
+                            <option value={crop}>{crop}</option>
+                            ))}
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Selector de Productos -->
+                <div>
+                    <label for="products" class="block text-sm font-medium text-gray-700">
+                        Selecciona productos asociados a la parcela
+                    </label>
+                    <div class="mt-2">
+                        <select
+                        id="products"
+                        name="products"
+                        multiple
+                        class="tom-select block w-full rounded-md  text-gray-900 shadow-sm focus:border-secondary-green focus:ring-secondary-green sm:text-sm"
+                        >
+                        {productos.map((product: {id:string, name:string}) => (
+                            <option value={product.id}>{product.name}</option>
+                        ))}
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Importa Tom Select desde CDN -->
+                
+                <link href="https://cdn.jsdelivr.net/npm/tom-select@2.3.1/dist/css/tom-select.css" rel="stylesheet" />
+
+                <!-- Inicializa Tom Select -->
+                <script  is:inline type="module">
+                const select = document.querySelector('#products');
+                if (select) {
+                    new TomSelect(select, {
+                    plugins: ['remove_button'],
+                    placeholder: 'Selecciona uno o varios productos...',
+                    maxOptions: 1000,
+                    persist: false,
+                    create: false,
+                    allowEmptyOption: true,
+                    });
+                }
+                </script>
+
+
+                {/* Botón de Envío */}
+                <div>
+                    <button
+                    type="button"
+                    onclick="handleSubmit(event)"
+                    class="flex w-full justify-center rounded-md bg-primary-green px-4 py-2 text-sm font-semibold text-white shadow-md transition hover:bg-secondary-green focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-secondary-green"
+                    >
+                    Registrar Parcela
+                    </button>
+                </div>
+
+                <script is:inline>
+                    async function handleSubmit(event) {
+                        event.preventDefault();
+                        // Execute reCAPTCHA v3
+                        grecaptcha.ready(async () => {
+                            const token = await grecaptcha.execute("6LecCRwrAAAAALFVCh9DMGWKMBQVAtuaInIm1yJj", { action: 'submit' });
+                
+                            // Add the token to the form data
+                            const form = event.target.closest('form');
+                            const recaptchaInput = document.createElement('input');
+                            recaptchaInput.type = 'hidden';
+                            recaptchaInput.name = 'recaptcha';
+                            recaptchaInput.value = token;
+                            form.appendChild(recaptchaInput);
+                
+                            // Submit the form
+                            form.submit();
+                        });
+                    }
+                </script>
+            </form>
+        </div>
+    </div>
+</Layout>

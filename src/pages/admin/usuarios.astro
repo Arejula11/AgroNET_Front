@@ -1,0 +1,12 @@
+---
+
+import AdminLayout from "@layouts/AdminLayout.astro";
+import SearchUser from "@components/SearchUser";
+
+
+---
+
+<AdminLayout>
+    <SearchUser client:only="react" token={Astro.cookies.get("token")?.value}/>
+    
+</AdminLayout>

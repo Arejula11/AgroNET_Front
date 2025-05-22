@@ -1,0 +1,222 @@
+---
+import { registerUserProvider, AutonomousCommunity, UserRole } from "@/utils/auth";
+import LandingLayout from "@layouts/LandingLayout.astro";
+import { getInfoUser } from "@utils/getInfoUser";
+import {getSession} from "auth-astro/server";
+
+
+//obtenemos el email de las cookies y lo eliminamos
+let session : any = await getSession(Astro.request);
+
+const email = session?.user.email
+if (email) {
+    Astro.cookies.delete("email");
+}
+const tokenProvider = session?.providerToken;
+const provider = session?.provider;
+
+const dataString = {
+    username: "",
+    role: "",
+    autonomousCommunity: "",
+    email:  email,
+    phoneNumber: "",
+
+};
+let errorMessage = "";
+
+if (Astro.request.method === "POST") {
+    try {
+        // Obtener los datos del formulario
+        const data = await Astro.request.formData();
+        const recaptchaToken = data.get("recaptcha");
+        // Verify the reCAPTCHA token
+         // Verify the reCAPTCHA token
+         const recaptchaURL = "https://www.google.com/recaptcha/api/siteverify";
+        const requestHeaders = {
+            "Content-Type": "application/x-www-form-urlencoded",
+        };
+        const requestBody = new URLSearchParams({
+            secret: import.meta.env.RECAPTCHA_SECRET,
+            response: recaptchaToken,
+        });
+
+        const recaptchaResponse = await fetch(recaptchaURL, {
+            method: "POST",
+            headers: requestHeaders,
+            body: requestBody.toString(),
+        });
+
+        const recaptchaResult = await recaptchaResponse.json();
+        console.log("Recaptcha result:", recaptchaResult);
+        if (!recaptchaResult.success) {
+            throw new Error("Error al verificar el captcha. Inténtalo de nuevo.");
+        }
+        if (recaptchaResult.score < 0.5) {
+            throw new Error("Captcha no verificado. Inténtalo de nuevo.");
+        }
+
+
+
+
+        const username = data.get("username")?.toString().trim() || "";
+        const role = data.get("role")?.toString().trim() || "";
+        const autonomousCommunity = data.get("autonomousCommunity")?.toString().trim() || "";
+        const telephone = data.get("telephone")?.toString().trim() || "";
+
+
+        
+
+
+        dataString.username = username;
+        dataString.role = role;
+        dataString.autonomousCommunity = autonomousCommunity;
+        dataString.phoneNumber = telephone;
+        const isTelephoneValid = /^\d{9}$/.test(telephone);
+        if (!isTelephoneValid) {
+            errorMessage = "El número de teléfono no es válido.";
+        }
+        dataString.phoneNumber = "+34" + telephone;
+        // Si los datos no son correctos, mostrar un mensaje de error
+        if (errorMessage) {
+            console.error(errorMessage);
+        } else {
+            // Si los datos son correctos, enviarlos al servidor para registar el usuario
+            const data = {
+                ...tokenProvider,
+                userData: dataString,
+            };
+            const response = await registerUserProvider(data, provider);
+            if (response.status === 201) {
+                Astro.cookies.set("token", response.data.token, {
+                httpOnly: true,
+                secure: true,
+                });
+                const userData = await getInfoUser(response.data.user._id, response.data.token);
+                Astro.cookies.set("user", JSON.stringify(userData), { httpOnly: true, secure: true});
+              
+                // also redirections if the user is blocked, admin, etc. This is taken from src/pages/login,
+                // so it's prob a good idea to move it somewhere else and reuse it...
+
+                return Astro.redirect("/mapa");
+            }
+        }
+    } catch (error) {
+        if (error instanceof Error) {
+            console.error("Error en al registrar:", error.message);
+            errorMessage = "Ocurrió un error al iniciar sesión. Inténtalo más tarde.";
+        }
+    }
+}
+
+
+---
+
+<head>
+    <meta charset="UTF-8">
+    <script is:inline src="https://www.google.com/recaptcha/api.js?render=6LecCRwrAAAAALFVCh9DMGWKMBQVAtuaInIm1yJj"></script>
+</head>
+<LandingLayout>
+    <div class="flex min-h-full flex-col justify-center px-6 py-12 lg:px-8">
+        <div class="sm:mx-auto sm:w-full sm:max-w-sm">
+            <img class="mx-auto h-14 w-auto" src="/favicon.svg" alt="AgroNet" />
+            <h2 class="mt-10 text-center text-2xl/9 font-bold tracking-tight text-gray-900">
+                Crea un cuenta en AgroNET
+            </h2>
+        </div>
+
+        <div class="mt-10 sm:mx-auto sm:w-full sm:max-w-sm">
+            <form class="space-y-6" method="POST">
+                <div>
+                    <label for="username" class="block text-sm/6 font-medium text-gray-900">
+                        Nombre de usuario
+                    </label>
+                    <div class="mt-2">
+                        <input
+                            type="text"
+                            name="username"
+                            id="username"
+                            required
+                            class="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-secondary-green sm:text-sm/6"
+                        />
+                    </div>
+                </div>
+                <div>
+                    <label for="telephone" class="block text-sm/6 font-medium text-gray-900">
+                        Número de teléfono
+                    </label>
+                    <div class="mt-2">
+                        <input
+                            type="tel"
+                            name="telephone"
+                            id="telephone"
+                            required
+                            class="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-secondary-green sm:text-sm/6"
+                        />
+                    </div>
+                </div>
+                <div>
+                    <label for="role" class="block text-sm/6 font-medium text-gray-900">
+                        Selecciona tu Rol
+                    </label>
+                    <div class="mt-2">
+                        <select name="role" id="role" class="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 outline-gray-300 focus:outline-2 focus:outline-secondary-green sm:text-sm/6">
+                            {Object.values(UserRole).map(role => (
+                                <option value={role}>{role}</option>
+                            ))}
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label for="role" class="block text-sm/6 font-medium text-gray-900">
+                        Selecciona tu Comunidad Autónoma
+                    </label>
+                    <div class="mt-2">
+                        <select name="autonomousCommunity" id="autonomousCommunity" class="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 outline-gray-300 focus:outline-2 focus:outline-secondary-green sm:text-sm/6">
+                            {Object.values(AutonomousCommunity).map(role => (
+                                <option value={role}>{role}</option>
+                            ))}
+                        </select>
+                    </div>
+                </div>
+
+                {errorMessage && (
+                    <div class="text-red-600 text-sm mt-2">
+                        {errorMessage}
+                    </div>
+                )}
+                <div>
+                    <button
+                        type="button"
+                        class="flex w-full justify-center rounded-md bg-primary-green px-3 py-1.5 text-sm/6 font-semibold text-white shadow-xs hover:bg-secondary-green hover:cursor-pointer"
+                        onclick="handleSubmit(event)"
+                    >
+                        Registrarse
+                    </button>
+                </div>
+
+
+                <script is:inline>
+                    async function handleSubmit(event) {
+                        event.preventDefault();
+                        // Execute reCAPTCHA v3
+                        grecaptcha.ready(async () => {
+                            const token = await grecaptcha.execute("6LecCRwrAAAAALFVCh9DMGWKMBQVAtuaInIm1yJj", { action: 'submit' });
+                
+                            // Add the token to the form data
+                            const form = event.target.closest('form');
+                            const recaptchaInput = document.createElement('input');
+                            recaptchaInput.type = 'hidden';
+                            recaptchaInput.name = 'recaptcha';
+                            recaptchaInput.value = token;
+                            form.appendChild(recaptchaInput);
+                
+                            // Submit the form
+                            form.submit();
+                        });
+                    }
+                </script>
+            </form>
+        </div>
+    </div>
+</LandingLayout>

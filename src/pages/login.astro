@@ -1,0 +1,205 @@
+---
+import { loginUser } from "@/utils/auth";
+import LandingLayout from "@layouts/LandingLayout.astro";
+import { SignIn } from "auth-astro/components";
+import {getSession} from "auth-astro/server";
+import { getInfoUser } from "@utils/getInfoUser";
+
+
+
+
+
+//Se mira si en las cookies ya existe un token o ha expirado, si existe se redirige a la pagina de inicio
+
+
+
+//Si no hay token pero si que hay una sesion activa, se obtiene token y se redirige a la pagina de inicio
+
+const session = await getSession(Astro.request);
+//Al haber modificado el tipo de la sesion en `auth.config.mjs`, se debe hacer un cast a any para evitar errores
+const ourSession : any = session;
+
+if (ourSession && ourSession?.sessionToken) {
+    // Si el usuario ya está autenticado, redirigir a la página de inicio
+    Astro.cookies.set("token", ourSession.sessionToken, { httpOnly: true, secure: true });
+    try {
+        //en el token jwt se encuentra el id del usuario, por lo que se puede obtener la informacion del usuario
+        //Se obtiene la informacion del usuario decodificando el token
+        const user = JSON.parse(atob(ourSession.sessionToken.split(".")[1]));
+        const userData = await getInfoUser(user.id, ourSession.sessionToken);
+        //se elimina el campo "loginHistory" del objeto userData
+        delete userData.loginHistory;
+        Astro.cookies.set('user', JSON.stringify(userData), { httpOnly: true, secure: true });
+        if(userData.isBlocked){
+            return Astro.redirect("/bloqueado");
+        }
+        if(userData.isAdmin){
+            return Astro.redirect("/admin");
+        }
+    }catch (error) {
+        console.error("Error al obtener la información del usuario:", error);
+        // Manejar el error según sea necesario
+    }
+    
+    return Astro.redirect("/mapa");
+}else if (ourSession && ourSession?.needsMoreData) {
+    // Si la sesión necesita más datos, redirigir a la página de inicio de sesión
+    return Astro.redirect("/signupProvider");
+}
+
+
+//Si no hay token ni sesion activa, se muestra el formulario de inicio de sesion
+const dataString = { usernameOrEmail: "", password: "" };
+let errorMessage = "";
+
+if (Astro.request.method === "POST") {
+    try {
+        // Obtener los datos del formulario
+        const data = await Astro.request.formData();
+        const email = data.get("email")?.toString().trim() || "";
+        const password = data.get("password")?.toString().trim() || "";
+        
+        dataString.usernameOrEmail = email;
+        dataString.password = password;
+
+        // Comprobar que el formato de los datos es correcto
+        const isPasswordValid = password.length >= 8;
+
+        if (!isPasswordValid) {
+            errorMessage = "La contraseña debe tener al menos 8 caracteres.";
+        }
+
+        // Si los datos no son correctos, mostrar un mensaje de error
+        if (errorMessage) {
+            console.error(errorMessage);
+        } else {
+            // Si los datos son correctos, enviarlos al servidor para autenticar el usuario
+            const response = await loginUser(dataString);
+            if (response?.token) {
+                // Guardar el token y usuario en cookies y redirigir
+                Astro.cookies.set("token", response.token, { httpOnly: true, secure: true });
+                const userData = await getInfoUser(response.user._id, response.token);
+                        delete userData.loginHistory;
+               Astro.cookies.set("user", JSON.stringify(userData), {   httpOnly: true, secure: true});
+
+                // SI el usuario esta blockeado, redirigir a la página de bloqueo
+                if(response.user.isBlocked){
+                    return Astro.redirect("/bloqueado");
+                }
+                // Si el usuario es administrador, redirigir a la página de administrador
+                if(response.user.isAdmin){
+                    return Astro.redirect("/admin");
+                }              
+                return Astro.redirect("/mapa");
+            } else {
+                // Si el usuario no se autentica correctamente, mostrar mensaje de error
+                errorMessage = "Credenciales incorrectas. Inténtalo de nuevo.";
+                console.error(errorMessage);
+            }
+        }
+    } catch (error) {
+        if (error instanceof Error) {
+            console.error("Error en el login:", error.message);
+             if (error.message.includes("401")) {
+                errorMessage = "Credenciales incorrectas. Inténtalo de nuevo.";
+            } else {
+                errorMessage = "Ocurrió un error inesperado. Inténtalo más tarde.";
+            }
+        }
+    }
+}
+---
+
+<LandingLayout>
+    <div class="flex min-h-full flex-col justify-center px-6 py-12 lg:px-8">
+        <div class="sm:mx-auto sm:w-full sm:max-w-sm">
+            <img class="mx-auto h-14 w-auto" src="/favicon.svg" alt="AgroNet" />
+            <h2 class="mt-10 text-center text-2xl/9 font-bold tracking-tight text-gray-900">
+                Inicia sesión en tu cuenta
+            </h2>
+        </div>
+
+        <div class="mt-10 sm:mx-auto sm:w-full sm:max-w-sm">
+            <form class="space-y-6" method="POST">
+                <div>
+                    <label for="email" class="block text-sm/6 font-medium text-gray-900">
+                        Correo electrónico
+                    </label>
+                    <div class="mt-2">
+                        <input
+                            type="email"
+                            name="email"
+                            id="email"
+                            autocomplete="email"
+                            required
+                            class="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-secondary-green sm:text-sm/6"
+                        />
+                    </div>
+                </div>
+
+                <div>
+                    <div class="flex items-center justify-between">
+                        <label for="password" class="block text-sm/6 font-medium text-gray-900">
+                            Contraseña
+                        </label>
+                        <div class="text-sm">
+                            <a href="#" class="font-semibold text-primary-green hover:text-secondary-green">
+                                ¿Olvidaste tu contraseña?
+                            </a>
+                        </div>
+                    </div>
+                    <div class="mt-2">
+                        <input
+                            type="password"
+                            name="password"
+                            id="password"
+                            autocomplete="current-password"
+                            required
+                            class="block w-full rounded-md bg-white px-3 py-1.5 text-base text-gray-900 outline-1 -outline-offset-1 outline-gray-300 placeholder:text-gray-400 focus:outline-2 focus:-outline-offset-2 focus:outline-secondary-green sm:text-sm/6"
+                        />
+                    </div>
+                </div>
+
+                <!-- Mostrar mensaje de error si lo hay -->
+                {errorMessage && (
+                    <div class="text-red-600 text-sm mt-2">
+                        {errorMessage}
+                    </div>
+                )}
+
+                <div>
+                    <button
+                        type="submit"
+                        class="flex w-full justify-center rounded-md bg-primary-green px-3 py-1.5 text-sm/6 font-semibold text-white shadow-xs hover:bg-secondary-green hover:cursor-pointer"
+                    >
+                        Iniciar sesión
+                    </button>
+                </div>
+            </form>
+
+            <div class="mt-4 mb-8 text-center text-sm/6 text-gray-500">
+                ¿No eres miembro?
+                <a href="/signup" class="font-semibold text-primary-green hover:text-secondary-green">
+                    Crea una cuenta
+                </a>
+            </div>
+
+            <div class="flex items-center mt-4">
+                <div class="flex-grow border-t"></div>
+                <span class="px-2 text-gray-500 text-sm">O continúa con</span>
+                <div class="flex-grow border-t"></div>
+            </div>
+
+            <div class="flex justify-center mt-4 space-x-2">
+                <SignIn class="flex items-center px-4 py-2 border rounded-lg w-full justify-center hover:bg-gray-100 hover:cursor-pointer" provider="google">
+                    <img src="https://www.svgrepo.com/show/355037/google.svg" class="w-5 h-5 mr-2" alt="Google" />
+                    Google
+                </SignIn>
+                <SignIn class="flex items-center px-4 py-2 border rounded-lg w-full justify-center hover:bg-gray-100 hover:cursor-pointer" provider="github">
+                    <img src="https://www.svgrepo.com/show/512317/github-142.svg" class="w-5 h-5 mr-2" alt="GitHub" />
+                    GitHub
+                </SignIn>
+            </div>
+        </div>
+    </div>
+</LandingLayout>

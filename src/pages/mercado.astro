@@ -1,0 +1,13 @@
+---
+import Layout from "@layouts/Layout.astro";
+import SearchProduct from "@components/SearchProduct";
+
+
+const token = Astro.cookies.get("token");
+
+
+---
+
+<Layout>
+    <SearchProduct client:only="react" token={token?.value}/>
+</Layout>
