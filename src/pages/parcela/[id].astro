@@ -80,6 +80,7 @@ try {
       geoJsonData = response.parcel.geometry.features[0] as FeatureCollection<Geometry, GeoJsonProperties>;
     
       //Guardamos las coordenadas de la parcela de la parcela en localstorage
+      console.log("Coordenadas:", { lat: latCentroide, lng: lngCentroide });
       Astro.cookies.set("coordenadas", JSON.stringify({ lat: latCentroide, lng: lngCentroide }), { httpOnly: true, secure: true, domain: "localhost", path: "/" });
       coordenadasIniciales.latitude = latCentroide;
       coordenadasIniciales.longitude = lngCentroide;

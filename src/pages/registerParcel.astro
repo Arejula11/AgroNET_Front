@@ -21,6 +21,7 @@ const productos: any = [];
 //obtenemos la lista de productos
 try {
     const response = await getAllProducts(token);
+    console.log("Response:", response);
     if (response && response.data) {
         response.data.products.forEach((producto: any) => {
             productos.push({
@@ -37,6 +38,7 @@ catch (error) {
 }
 //rescatamos las coordenadas  de la parcela
 const coordenadas = JSON.parse(Astro.cookies.get("coordenadas")?.value || "{}");
+console.log("Coordenadas:", coordenadas);
 if (Astro.request.method === "POST") {
     try {
         // Obtener los datos del formulario
