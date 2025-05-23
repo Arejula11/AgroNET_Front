@@ -4,7 +4,6 @@ import axios from 'axios';
 
 // Define el tipo para la respuesta de inicio de sesión
 interface Response {
-    data: {
         products: [{
             id: string;
             name: string;
@@ -19,7 +18,7 @@ interface Response {
                 all: number;
             }
         }]
-    }
+    
 };
 /**
  * Realiza una búsqueda de alimentos en el servidor.

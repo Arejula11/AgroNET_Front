@@ -22,8 +22,8 @@ const productos: any = [];
 try {
     const response = await getAllProducts(token);
     console.log("Response:", response);
-    if (response && response.data) {
-        response.data.products.forEach((producto: any) => {
+    if (response ) {
+        response.products.forEach((producto: any) => {
             productos.push({
                 id: producto.id,
                 name: producto.name
