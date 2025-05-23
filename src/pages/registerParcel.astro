@@ -38,7 +38,7 @@ catch (error) {
 }
 //rescatamos las coordenadas  de la parcela
 const coordenadas = JSON.parse(Astro.cookies.get("coordenadas")?.value || "{}");
-console.log("Coordenadas:", coordenadas);
+
 if (Astro.request.method === "POST") {
     try {
         // Obtener los datos del formulario
