@@ -18,7 +18,7 @@ const SearchUser = ({token}) => {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                setResponse(await searchUser({ name: name, page: page, size: 4, token: token }));
+                setResponse(await searchUser({ name: name, page: page, size: 15, token: token }));
             } catch (error) {
                 console.error(error);
             }
